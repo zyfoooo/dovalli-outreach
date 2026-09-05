@@ -2,8 +2,6 @@ name: Dovalli daily outreach
 
 on:
   schedule:
-    # 4:30 PM ET on weekdays (20:30 UTC during DST, 21:30 UTC standard time)
-    # Using 20:30 UTC which is 4:30 PM EDT (March-Nov). Adjust if needed.
     - cron: '30 20 * * 1-5'
   workflow_dispatch:
     inputs:
@@ -39,6 +37,6 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           FROM_NAME: ${{ secrets.FROM_NAME }}
-          DAILY_LIMIT: ${{ vars.DAILY_LIMIT || '10' }}
+          DAILY_LIMIT: '10'
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
         run: python outreach.py
