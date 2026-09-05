@@ -26,6 +26,8 @@ RESEND_KEY = os.environ["RESEND_API_KEY"].strip()
 ANTHROPIC_KEY = os.environ["ANTHROPIC_API_KEY"].strip()
 FROM_EMAIL = os.environ.get("FROM_EMAIL", "hello@dovalli.com").strip()
 FROM_NAME = os.environ.get("FROM_NAME", "Andrew").strip()
+DAILY_LIMIT = int(os.environ.get("DAILY_LIMIT", "10"))
+DRY_RUN = os.environ.get("DRY_RUN", "false").lower() == "true"
 
 NOTION_HEADERS = {
     "Authorization": f"Bearer {NOTION_TOKEN}",
