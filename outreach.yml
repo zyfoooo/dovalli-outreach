@@ -2,7 +2,11 @@ name: Dovalli daily outreach
 
 on:
   schedule:
-    - cron: '30 20 * * 1-5'
+    # 4:30 PM ET on weekdays year-round
+    # Two entries cover both DST (EDT = UTC-4) and standard (EST = UTC-5).
+    # Python script checks actual ET time and exits if not 4:30 PM.
+    - cron: '30 20 * * 1-5'  # 4:30 PM EDT (Mar-Nov)
+    - cron: '30 21 * * 1-5'  # 4:30 PM EST (Nov-Mar)
   workflow_dispatch:
     inputs:
       dry_run:
@@ -37,6 +41,7 @@ jobs:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
           FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
           FROM_NAME: ${{ secrets.FROM_NAME }}
-          DAILY_LIMIT: '10'
+          DAILY_LIMIT: ${{ vars.DAILY_LIMIT || '10' }}
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
         run: python outreach.py
