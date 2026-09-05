@@ -44,6 +44,9 @@ TODAY = date.today().isoformat()
 FOLLOWUP_3_DAYS = (date.today() + timedelta(days=3)).isoformat()
 FOLLOWUP_7_DAYS = (date.today() + timedelta(days=7)).isoformat()
 
+# Auto-mark Lost after this many days since first contact (~3 follow-ups worth)
+MAX_FOLLOWUP_DAYS = int(os.environ.get("MAX_FOLLOWUP_DAYS", "20"))
+
 
 # ---- Notion helpers ----
 
@@ -122,6 +125,19 @@ def prop_select(page: dict, name: str) -> str:
     if not p or not p.get("select"):
         return ""
     return p["select"].get("name", "")
+
+
+def prop_date(page: dict, name: str) -> Optional[date]:
+    p = get_prop(page, name)
+    if not p or not p.get("date"):
+        return None
+    start = p["date"].get("start")
+    if not start:
+        return None
+    try:
+        return date.fromisoformat(start[:10])
+    except ValueError:
+        return None
 
 
 def notion_update_page(page_id: str, properties: dict) -> None:
@@ -297,6 +313,7 @@ def main():
 
     sent = 0
     errors = 0
+    marked_lost = 0
 
     for page in queue:
         page_id = page["id"]
@@ -309,6 +326,27 @@ def main():
             continue
 
         is_followup = status == "Emailed"
+
+        # Auto-Lost: if this is a follow-up and it's been MAX_FOLLOWUP_DAYS+ since first contact,
+        # stop sending and mark Lost instead.
+        if is_followup:
+            first_contact = prop_date(page, "Date Contacted")
+            if first_contact and (date.today() - first_contact).days >= MAX_FOLLOWUP_DAYS:
+                days_since = (date.today() - first_contact).days
+                print(f"  -> {name} <{email}> MARK LOST ({days_since} days since first contact, no reply)")
+                if not DRY_RUN:
+                    try:
+                        notion_update_page(page_id, {
+                            "Status": {"select": {"name": "Lost"}},
+                            "Next Follow-up": {"date": None},
+                        })
+                        marked_lost += 1
+                    except Exception as e:
+                        errors += 1
+                        print(f"     ERROR marking lost: {e}")
+                else:
+                    marked_lost += 1
+                continue
 
         try:
             draft = draft_email(name, is_followup)
@@ -340,7 +378,7 @@ def main():
             import traceback
             traceback.print_exc()
 
-    print(f"[{datetime.now().isoformat()}] done. sent={sent}, errors={errors}")
+    print(f"[{datetime.now().isoformat()}] done. sent={sent}, marked_lost={marked_lost}, errors={errors}")
     if errors > 0:
         sys.exit(1)
 
