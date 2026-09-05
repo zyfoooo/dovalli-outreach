@@ -15,6 +15,7 @@ import sys
 import json
 from datetime import date, datetime, timedelta
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import requests
 from anthropic import Anthropic
@@ -209,7 +210,16 @@ def send_email(to_email: str, to_name: str, subject: str, body: str) -> str:
 # ---- Main ----
 
 def main():
-    print(f"[{datetime.now().isoformat()}] Dovalli outreach starting")
+    # DST-safe time check: only run if it's 4:30 PM ET (16:00-16:59 window)
+    # Skips the second cron entry that fires an hour off.
+    # workflow_dispatch (manual trigger) bypasses this check.
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+    is_manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
+    if not is_manual and now_et.hour != 16:
+        print(f"Skipping: current ET hour is {now_et.hour}, only run at 16 (4 PM ET).")
+        return
+
+    print(f"[{datetime.now().isoformat()}] Dovalli outreach starting (ET: {now_et.isoformat()})")
     print(f"  today: {TODAY}, daily_limit: {DAILY_LIMIT}, dry_run: {DRY_RUN}")
 
     prospects = notion_query_prospects()
