@@ -28,6 +28,8 @@ ANTHROPIC_KEY = os.environ["ANTHROPIC_API_KEY"].strip()
 FROM_EMAIL = os.environ.get("FROM_EMAIL", "hello@dovalli.com").strip()
 FROM_NAME = os.environ.get("FROM_NAME", "Andrew").strip()
 DAILY_LIMIT = int(os.environ.get("DAILY_LIMIT", "10"))
+FOLLOWUP_LIMIT = int(os.environ.get("FOLLOWUP_LIMIT", "5"))
+COLD_LIMIT = int(os.environ.get("COLD_LIMIT", "5"))
 DRY_RUN = os.environ.get("DRY_RUN", "false").lower() == "true"
 
 NOTION_HEADERS = {
@@ -136,19 +138,34 @@ The AI captures leads and answers buyer questions on their site so they never mi
 
 Tone: warm, conversational, brief. Not salesy. Reads like a real person, not marketing copy.
 
-Recipient: {name} (real estate agent).
+Recipient: {name} (real estate agent). Use their first name only in the greeting.
 
-Constraints:
-- Subject line: 4-6 words, lowercase preferred, no clickbait, no exclamation marks
-- Body: 3-5 short sentences MAX
-- No "I hope this finds you well" or similar filler
-- One clear reason we reached out (mention they're a real estate agent + why AI helps)
-- One clear call-to-action: point them to dovalli.com to see it themselves (self-serve, no call needed)
-- Sign off: just "— {sender}"
+Subject line rules:
+- 4-6 words, lowercase preferred, no clickbait, no exclamation marks
+
+BODY STRUCTURE (use this EXACT structure with blank lines between each section):
+
+Hey [first name],
+
+[Opening sentence — one specific reason you reached out, acknowledging they sell real estate]
+
+[Middle 1-2 sentences — what Dovalli does in plain terms, the specific pain it solves for agents]
+
+[Closing sentence — invite them to dovalli.com to see it themselves, no call needed]
+
+— {sender}
+
+Rules for the body:
+- Use \\n\\n between paragraphs (this is critical for readability)
+- Each paragraph is 1-2 sentences MAX, never a wall of text
+- No filler like "I hope this finds you well"
 - No emojis, no exclamation marks
+- Vary the exact wording each time — don't reuse phrases across emails
 
-Return your response as JSON: {{"subject": "...", "body": "..."}}
-Nothing else."""
+Return your response as JSON with this exact shape:
+{{"subject": "...", "body": "Hey Sarah,\\n\\nOpening line here.\\n\\nMiddle line here.\\n\\nCTA line.\\n\\n— {sender}"}}
+
+Only return the JSON. No explanation before or after."""
 
 
 FOLLOWUP_EMAIL_PROMPT = """You are drafting a follow-up email for Dovalli, an AI automation agency for real estate agents.
@@ -157,15 +174,33 @@ You already sent one email to {name} {days_ago} days ago and got no reply.
 
 Tone: brief, no pressure, respectful of their time. Not pushy.
 
-Constraints:
-- Subject: reply to previous or fresh 3-4 word subject
-- Body: 2-3 sentences max
-- Acknowledge you're following up, briefly restate the value, easy out
-- Sign off: just "— {sender}"
-- No emojis, no exclamation marks
+Subject line rules:
+- 2-4 words, lowercase, casual, no exclamation marks
+- Do NOT use the phrase "quick follow-up" or "quick follow up" — overused
+- Vary each time. Think: a note from a real person, not a template. Could reference the previous topic, ask a light question, or use a phrase like "one more thing", "still here", "worth a look", "circling back", "was thinking", "in case you missed it" — but rotate freely, not the same one twice
 
-Return your response as JSON: {{"subject": "...", "body": "..."}}
-Nothing else."""
+BODY STRUCTURE (use this EXACT structure with blank lines between each section):
+
+Hey [first name],
+
+[One sentence acknowledging you're following up — reference the previous email casually]
+
+[One sentence restating the value in plain terms — no repeating the exact opener from before]
+
+[Easy out — something like "if the timing is off, no worries, wish you the best on your listings"]
+
+— {sender}
+
+Rules for the body:
+- Use \\n\\n between paragraphs (critical for readability)
+- Each paragraph is 1 sentence
+- No emojis, no exclamation marks
+- Vary phrasing each time
+
+Return your response as JSON with this exact shape:
+{{"subject": "...", "body": "Hey Sarah,\\n\\nFollow-up line.\\n\\nValue line.\\n\\nEasy out.\\n\\n— {sender}"}}
+
+Only return the JSON. No explanation before or after."""
 
 
 def draft_email(name: str, is_followup: bool, days_since: int = 0) -> dict:
@@ -242,12 +277,23 @@ def main():
     prospects = notion_query_prospects()
     print(f"  fetched {len(prospects)} candidates")
 
-    # Prioritize: follow-ups first (already engaged), then new cold outreach
+    # Split: reserve slots for both follow-ups (warm) and cold outreach (pipeline growth).
+    # If one bucket is smaller than its slot count, unused slots go to the other bucket.
     followups = [p for p in prospects if prop_select(p, "Status") == "Emailed"]
     cold = [p for p in prospects if prop_select(p, "Status") == "Cold"]
-    queue = (followups + cold)[:DAILY_LIMIT]
 
-    print(f"  queue: {len(queue)} ({len(followups)} follow-ups, {len(cold[:DAILY_LIMIT - len(followups)])} cold)")
+    followup_slots = min(FOLLOWUP_LIMIT, len(followups))
+    cold_slots = min(COLD_LIMIT, len(cold))
+    # Redistribute unused slots
+    if followup_slots < FOLLOWUP_LIMIT:
+        cold_slots = min(cold_slots + (FOLLOWUP_LIMIT - followup_slots), len(cold), DAILY_LIMIT - followup_slots)
+    if cold_slots < COLD_LIMIT:
+        followup_slots = min(followup_slots + (COLD_LIMIT - cold_slots), len(followups), DAILY_LIMIT - cold_slots)
+
+    queue = followups[:followup_slots] + cold[:cold_slots]
+    queue = queue[:DAILY_LIMIT]
+
+    print(f"  queue: {len(queue)} ({followup_slots} follow-ups, {cold_slots} cold) | pool: {len(followups)} follow-ups, {len(cold)} cold")
 
     sent = 0
     errors = 0
