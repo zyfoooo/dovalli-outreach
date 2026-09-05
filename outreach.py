@@ -148,7 +148,25 @@ def notion_update_page(page_id: str, properties: dict) -> None:
 
 # ---- Email drafting via Claude ----
 
-FIRST_EMAIL_PROMPT = """You are drafting a cold outreach email for Dovalli, an AI automation agency that builds 24/7 AI assistants for real estate agents' websites.
+FIRST_EMAIL_ANGLES = {
+    "lost_leads": {
+        "hook": "the pain angle — leads visit their site at 9pm on a Saturday and leave because nobody answered. Agents are actively losing money to slow response times.",
+        "cta": "point them to dovalli.com to see a live demo they can talk to",
+    },
+    "competitive": {
+        "hook": "the competitive angle — top-producing agents in their area are already using AI to respond in seconds. Don't get outpaced.",
+        "cta": "point them to dovalli.com to see the same tool the top 1% are using",
+    },
+    "time_freedom": {
+        "hook": "the time-back angle — real estate is 24/7 already. Take your evenings back, let the AI qualify visitors while you sleep.",
+        "cta": "invite them to see it at dovalli.com — takes 60 seconds",
+    },
+}
+
+
+def build_first_email_prompt(name: str, angle_key: str) -> str:
+    angle = FIRST_EMAIL_ANGLES[angle_key]
+    return f"""You are drafting a cold outreach email for Dovalli, an AI automation agency that builds 24/7 AI assistants for real estate agents' websites.
 
 The AI captures leads and answers buyer questions on their site so they never miss a lead.
 
@@ -156,30 +174,34 @@ Tone: warm, conversational, brief. Not salesy. Reads like a real person, not mar
 
 Recipient: {name} (real estate agent). Use their first name only in the greeting.
 
+ANGLE FOR THIS EMAIL: {angle['hook']}
+CTA: {angle['cta']}
+
 Subject line rules:
 - 4-6 words, lowercase preferred, no clickbait, no exclamation marks
+- Should hint at the angle above without being generic
 
 BODY STRUCTURE (use this EXACT structure with blank lines between each section):
 
 Hey [first name],
 
-[Opening sentence — one specific reason you reached out, acknowledging they sell real estate]
+[Opening sentence — reference the angle above in a specific, concrete way]
 
-[Middle 1-2 sentences — what Dovalli does in plain terms, the specific pain it solves for agents]
+[Middle 1-2 sentences — what Dovalli does in plain terms tied to the angle]
 
-[Closing sentence — invite them to dovalli.com to see it themselves, no call needed]
+[Closing sentence — the CTA above]
 
-— {sender}
+— {FROM_NAME}
 
 Rules for the body:
-- Use \\n\\n between paragraphs (this is critical for readability)
+- Use \\n\\n between paragraphs (critical for readability)
 - Each paragraph is 1-2 sentences MAX, never a wall of text
 - No filler like "I hope this finds you well"
 - No emojis, no exclamation marks
-- Vary the exact wording each time — don't reuse phrases across emails
+- Vary the exact wording each time
 
 Return your response as JSON with this exact shape:
-{{"subject": "...", "body": "Hey Sarah,\\n\\nOpening line here.\\n\\nMiddle line here.\\n\\nCTA line.\\n\\n— {sender}"}}
+{{"subject": "...", "body": "Hey Sarah,\\n\\nOpening line here.\\n\\nMiddle line here.\\n\\nCTA line.\\n\\n— {FROM_NAME}"}}
 
 Only return the JSON. No explanation before or after."""
 
@@ -219,12 +241,15 @@ Return your response as JSON with this exact shape:
 Only return the JSON. No explanation before or after."""
 
 
-def draft_email(name: str, is_followup: bool, days_since: int = 0) -> dict:
-    prompt = (
-        FOLLOWUP_EMAIL_PROMPT.format(name=name, days_ago=days_since, sender=FROM_NAME)
-        if is_followup
-        else FIRST_EMAIL_PROMPT.format(name=name, sender=FROM_NAME)
-    )
+def draft_email(name: str, is_followup: bool, days_since: int = 0) -> tuple:
+    """Returns (draft_dict, angle_used) so we can track which angle was sent."""
+    import random
+    if is_followup:
+        prompt = FOLLOWUP_EMAIL_PROMPT.format(name=name, days_ago=days_since, sender=FROM_NAME)
+        angle_used = "followup"
+    else:
+        angle_used = random.choice(list(FIRST_EMAIL_ANGLES.keys()))
+        prompt = build_first_email_prompt(name, angle_used)
     msg = anthropic.messages.create(
         model="claude-haiku-4-5-20251001",
         max_tokens=500,
@@ -240,7 +265,7 @@ def draft_email(name: str, is_followup: bool, days_since: int = 0) -> dict:
     # valid object using raw_decode, which returns (obj, end_index).
     try:
         obj, _end = json.JSONDecoder().raw_decode(text)
-        return obj
+        return obj, angle_used
     except json.JSONDecodeError:
         # Fallback: try to extract {...} block via brace matching
         start = text.find("{")
@@ -252,7 +277,7 @@ def draft_email(name: str, is_followup: bool, days_since: int = 0) -> dict:
                 elif text[i] == "}":
                     depth -= 1
                     if depth == 0:
-                        return json.loads(text[start:i + 1])
+                        return json.loads(text[start:i + 1]), angle_used
         raise
 
 
@@ -349,11 +374,11 @@ def main():
                 continue
 
         try:
-            draft = draft_email(name, is_followup)
+            draft, angle = draft_email(name, is_followup)
             subject = draft["subject"].strip()
             body = draft["body"].strip()
 
-            print(f"  -> {name} <{email}> ({'follow-up' if is_followup else 'cold'})")
+            print(f"  -> {name} <{email}> ({'follow-up' if is_followup else 'cold'} · angle={angle})")
             print(f"     subject: {subject}")
 
             if DRY_RUN:
