@@ -185,7 +185,24 @@ def draft_email(name: str, is_followup: bool, days_since: int = 0) -> dict:
         text = text.strip("`")
         if text.startswith("json"):
             text = text[4:].strip()
-    return json.loads(text)
+    # Claude sometimes adds explanation after the JSON — parse only the first
+    # valid object using raw_decode, which returns (obj, end_index).
+    try:
+        obj, _end = json.JSONDecoder().raw_decode(text)
+        return obj
+    except json.JSONDecodeError:
+        # Fallback: try to extract {...} block via brace matching
+        start = text.find("{")
+        if start >= 0:
+            depth = 0
+            for i in range(start, len(text)):
+                if text[i] == "{":
+                    depth += 1
+                elif text[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        return json.loads(text[start:i + 1])
+        raise
 
 
 # ---- Resend ----
