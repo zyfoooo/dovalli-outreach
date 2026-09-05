@@ -53,12 +53,12 @@ def notion_query_prospects() -> list:
             "or": [
                 {"and": [
                     {"property": "Status", "select": {"equals": "Cold"}},
-                    {"property": "Email", "email": {"is_not_empty": True}},
+                    {"property": "Email", "rich_text": {"is_not_empty": True}},
                 ]},
                 {"and": [
                     {"property": "Status", "select": {"equals": "Emailed"}},
                     {"property": "Next Follow-up", "date": {"on_or_before": TODAY}},
-                    {"property": "Email", "email": {"is_not_empty": True}},
+                    {"property": "Email", "rich_text": {"is_not_empty": True}},
                 ]},
             ]
         },
@@ -102,7 +102,16 @@ def prop_email(page: dict, name: str) -> str:
     p = get_prop(page, name)
     if not p:
         return ""
-    return (p.get("email") or "").strip()
+    # Handle both native email type and rich_text (Andrew's DB uses rich_text)
+    if p.get("type") == "email":
+        return (p.get("email") or "").strip()
+    if p.get("type") == "rich_text":
+        parts = p.get("rich_text", [])
+        return "".join(x.get("plain_text", "") for x in parts).strip()
+    if p.get("type") == "title":
+        parts = p.get("title", [])
+        return "".join(x.get("plain_text", "") for x in parts).strip()
+    return ""
 
 
 def prop_select(page: dict, name: str) -> str:
@@ -223,7 +232,7 @@ def main():
         status = prop_select(page, "Status")
 
         if not email or not name:
-            print(f"  SKIP: missing name/email ({page_id[:8]})")
+            print(f"  SKIP: missing name={name!r} email={email!r} ({page_id[:8]})")
             continue
 
         is_followup = status == "Emailed"
