@@ -174,7 +174,7 @@ def draft_email(name: str, is_followup: bool, days_since: int = 0) -> dict:
         else FIRST_EMAIL_PROMPT.format(name=name, sender=FROM_NAME)
     )
     msg = anthropic.messages.create(
-        model="claude-sonnet-5",
+        model="claude-haiku-4-5-20251001",
         max_tokens=500,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -263,7 +263,9 @@ def main():
 
         except Exception as e:
             errors += 1
-            print(f"     ERROR: {e}")
+            print(f"     ERROR: {type(e).__name__}: {e}")
+            import traceback
+            traceback.print_exc()
 
     print(f"[{datetime.now().isoformat()}] done. sent={sent}, errors={errors}")
     if errors > 0:
