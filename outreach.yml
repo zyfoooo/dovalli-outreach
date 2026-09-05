@@ -1,0 +1,44 @@
+name: Dovalli daily outreach
+
+on:
+  schedule:
+    # 4:30 PM ET on weekdays (20:30 UTC during DST, 21:30 UTC standard time)
+    # Using 20:30 UTC which is 4:30 PM EDT (March-Nov). Adjust if needed.
+    - cron: '30 20 * * 1-5'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no emails sent, no Notion updates)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run outreach
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_PROSPECTS_DB_ID: ${{ secrets.NOTION_PROSPECTS_DB_ID }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          FROM_NAME: ${{ secrets.FROM_NAME }}
+          DAILY_LIMIT: ${{ vars.DAILY_LIMIT || '10' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: python outreach.py
