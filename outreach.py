@@ -303,17 +303,35 @@ def send_email(to_email: str, to_name: str, subject: str, body: str) -> str:
 # ---- Main ----
 
 def main():
-    # DST-safe time check: only run if it's 4:30 PM ET (16:00-16:59 window)
-    # Skips the second cron entry that fires an hour off.
-    # workflow_dispatch (manual trigger) bypasses this check.
     now_et = datetime.now(ZoneInfo("America/New_York"))
     is_manual = os.environ.get("GITHUB_EVENT_NAME") == "workflow_dispatch"
-    if not is_manual and now_et.hour != 16:
-        print(f"Skipping: current ET hour is {now_et.hour}, only run at 16 (4 PM ET).")
+
+    # Wide time window (3 PM - 8 PM ET) to survive GitHub Actions cron delays.
+    # Dedup happens below via Notion (already-sent-today check).
+    if not is_manual and not (15 <= now_et.hour <= 20):
+        print(f"Skipping: current ET hour is {now_et.hour}, only run 3-8 PM ET.")
         return
 
     print(f"[{datetime.now().isoformat()}] Dovalli outreach starting (ET: {now_et.isoformat()})")
     print(f"  today: {TODAY}, daily_limit: {DAILY_LIMIT}, dry_run: {DRY_RUN}")
+
+    # Dedup: check if we already sent today (prevents double-fire from dual cron entries).
+    # Query Notion for anyone with Date Contacted == today.
+    if not is_manual and not DRY_RUN:
+        try:
+            dedup_url = f"https://api.notion.com/v1/databases/{NOTION_DB_ID}/query"
+            dedup_body = {
+                "page_size": 1,
+                "filter": {"property": "Date Contacted", "date": {"equals": TODAY}}
+            }
+            r = requests.post(dedup_url, headers=NOTION_HEADERS, json=dedup_body, timeout=30)
+            r.raise_for_status()
+            existing = r.json().get("results", [])
+            if existing:
+                print(f"Skipping: already sent today (found {len(existing)}+ contact(s) with Date Contacted={TODAY}).")
+                return
+        except Exception as e:
+            print(f"Warning: dedup check failed ({e}), proceeding anyway.")
 
     prospects = notion_query_prospects()
     print(f"  fetched {len(prospects)} candidates")
