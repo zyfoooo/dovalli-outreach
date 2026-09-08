@@ -1,0 +1,45 @@
+name: Dovalli daily DENTIST outreach
+
+on:
+  schedule:
+    # 4:45 PM ET on weekdays (offset from realtor at 4:30 to avoid API burst)
+    - cron: '45 20 * * 1-5'  # 4:45 PM EDT (Mar-Nov)
+    - cron: '45 21 * * 1-5'  # 4:45 PM EST (Nov-Mar)
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (no emails sent, no Notion updates)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+
+jobs:
+  send:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install deps
+        run: pip install -r requirements.txt
+
+      - name: Run dentist outreach
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+          NOTION_DENTIST_DB_ID: ${{ secrets.NOTION_DENTIST_DB_ID }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          FROM_EMAIL: ${{ secrets.FROM_EMAIL }}
+          FROM_NAME: ${{ secrets.FROM_NAME }}
+          DAILY_LIMIT: ${{ vars.DAILY_LIMIT || '10' }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: python outreach_dentists.py
