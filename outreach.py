@@ -172,7 +172,14 @@ The AI captures leads and answers buyer questions on their site so they never mi
 
 Tone: warm, conversational, brief. Not salesy. Reads like a real person, not marketing copy.
 
-Recipient: {name} (real estate agent). Use their first name only in the greeting.
+Recipient: {name} (real estate agent).
+
+GREETING RULES (CRITICAL — follow strictly):
+- If the name is a clear first name → use "Hey [First Name],"
+- If the name is "First Last" or "Last, First" format → extract the first name only
+- If the name contains business words (Inc, LLC, Realty, Group, Team, Associates, &, +) → use "Hey there,"
+- If unsure → default to "Hey there,"
+- NEVER open with "Hey [Full Name]," or "Hey [Business Name]," — sounds unnatural
 
 ANGLE FOR THIS EMAIL: {angle['hook']}
 CTA: {angle['cta']}
