@@ -168,7 +168,14 @@ def build_first_email_prompt(name: str, angle_key: str) -> str:
 
 Tone: warm, conversational, brief. Not salesy. Reads like a real person, not marketing copy.
 
-Recipient: {name} (dental practice contact). Use only what's before a comma or "DDS/DMD" for the greeting — first name if obvious, otherwise the practice name.
+Recipient: {name} (dental practice contact).
+
+GREETING RULES (CRITICAL — follow strictly):
+- If the name is clearly a person's first name (e.g., "Sarah", "Michael") → open with "Hey [First Name],"
+- If the name is a real person format like "Coleman Lawson, Cara, DDS" or "Michael E Piepenbring DMD" → extract the first name only (Cara, Michael)
+- If the name is a practice name or contains &, "PA", "Inc", "LLC", "Center", "Practice", "Dentistry", "Dental", "Family", or looks like a business (e.g., "Player & Moss", "Grand Strand Dentistry", "Coastal Carolina Oral Surgery") → open with "Hey there," (NOT the practice name)
+- If unsure → default to "Hey there,"
+- NEVER open with "Hey [Practice Name]," — sounds unnatural
 
 ANGLE FOR THIS EMAIL: {angle['hook']}
 CTA: {angle['cta']}
@@ -179,7 +186,7 @@ Subject line rules:
 
 BODY STRUCTURE (use this EXACT structure with blank lines between each section):
 
-Hey [first name or practice],
+Hey [First Name from greeting rules above, or "there"],
 
 [Opening sentence — reference the angle above in a specific, concrete way for a dental practice]
 
