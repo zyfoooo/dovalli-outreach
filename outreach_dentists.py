@@ -149,15 +149,19 @@ def notion_update_page(page_id, properties):
 FIRST_EMAIL_ANGLES = {
     "missed_calls": {
         "hook": "the missed-calls angle — emergency toothache calls at 9pm on a Saturday go straight to voicemail, and the patient calls the next practice on Google. A dental practice loses $1K-3K per missed emergency. Dovalli's AI answers 24/7 and captures the appointment.",
-        "cta": "point them to dovalli.com to see a demo they can talk to",
+        "cta": "invite them to CALL our AI demo at (843) 429-8776 to hear how it would answer their patients — no signup, just call",
     },
     "no_shows": {
         "hook": "the no-show angle — 15-20% appointment no-shows kill the schedule. Front desk spends hours calling to confirm. Dovalli's AI handles reminders and confirmations automatically and cuts no-shows in half.",
-        "cta": "point them to dovalli.com to see how it works",
+        "cta": "invite them to CALL (843) 429-8776 to hear our AI live — see how naturally it handles a real conversation",
     },
     "front_desk_overload": {
         "hook": "the front-desk angle — insurance verification, appointment questions, and new patient forms eat 30-40% of front desk time. Dovalli's AI handles the routine questions so staff can focus on patients in the chair.",
-        "cta": "invite them to see it at dovalli.com — takes 60 seconds",
+        "cta": "invite them to CALL (843) 429-8776 for a 60-second demo — hear the AI handle common front desk questions",
+    },
+    "hear_it": {
+        "hook": "the demo-driven angle — instead of describing what our AI does, we let them experience it. Dovalli built an AI that answers your website AND your phone 24/7 with natural conversation.",
+        "cta": "the whole email leads to: CALL (843) 429-8776 right now — 60 seconds to hear a real AI conversation for a dental practice",
     },
 }
 
