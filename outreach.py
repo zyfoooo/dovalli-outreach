@@ -151,15 +151,19 @@ def notion_update_page(page_id: str, properties: dict) -> None:
 FIRST_EMAIL_ANGLES = {
     "lost_leads": {
         "hook": "the pain angle — leads visit their site at 9pm on a Saturday and leave because nobody answered. Agents are actively losing money to slow response times.",
-        "cta": "point them to dovalli.com to see a live demo they can talk to",
+        "cta": "invite them to CALL our AI demo directly at (843) 429-8776 to hear it in action — no signup, just call and talk",
     },
     "competitive": {
         "hook": "the competitive angle — top-producing agents in their area are already using AI to respond in seconds. Don't get outpaced.",
-        "cta": "point them to dovalli.com to see the same tool the top 1% are using",
+        "cta": "invite them to CALL our AI demo at (843) 429-8776 and hear the same tool the top 1% are using",
     },
     "time_freedom": {
         "hook": "the time-back angle — real estate is 24/7 already. Take your evenings back, let the AI qualify visitors while you sleep.",
-        "cta": "invite them to see it at dovalli.com — takes 60 seconds",
+        "cta": "invite them to CALL (843) 429-8776 to hear our AI live — takes 60 seconds",
+    },
+    "hear_it": {
+        "hook": "the demo-driven angle — we built AI that answers your website AND your phone 24/7 in a natural conversation. Instead of describing it, we let them hear it themselves.",
+        "cta": "the whole email leads to: CALL (843) 429-8776 right now to have a real conversation with our AI — no signup, no sales pitch, just a live demo",
     },
 }
 
